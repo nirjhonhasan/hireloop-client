@@ -32,7 +32,7 @@ export default function SignInPage() {
       new FormData(e.currentTarget).entries()
     )
 
-    const { error: signInError } = await authClient.signIn.email({
+    const { data, error: signInError } = await authClient.signIn.email({
       email: formValue.email as string,
       password: formValue.password as string,
       callbackURL: "/",
@@ -44,7 +44,7 @@ export default function SignInPage() {
       return
     }
 
-    router.push("/")
+    router.push(`/dashboard/${data?.user.role ?? "seeker"}`)
     router.refresh()
   }
 

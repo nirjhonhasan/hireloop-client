@@ -56,7 +56,7 @@ export default function SignUpPage() {
       new FormData(e.currentTarget).entries()
     )
 
-    const { error: signUpError } = await authClient.signUp.email({
+    const { data, error: signUpError } = await authClient.signUp.email({
       name: formValue.name as string,
       email: formValue.email as string,
       password: formValue.password as string,
@@ -71,7 +71,7 @@ export default function SignUpPage() {
     }
 
     // signUp.email creates a session, so the user is now signed in.
-    router.push("/")
+    router.push(`/dashboard/${data?.user.role ?? "seeker"}`)
     router.refresh()
   }
 
