@@ -1,15 +1,20 @@
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
+import { Metadata } from "next"
+import { SiteHeader } from "@/components/home/site-header"
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'})
-
-const fontMono = Geist_Mono({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-mono",
+  variable: "--font-sans",
 })
+
+export const metadata: Metadata = {
+  title: "HireLoop",
+  description: "Created by Abul Hasan",
+}
 
 export default function RootLayout({
   children,
@@ -20,10 +25,14 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
+      className={cn("antialiased", inter.variable, "font-sans")}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <SiteHeader />
+
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
