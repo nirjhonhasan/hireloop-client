@@ -2,6 +2,7 @@ import { Inter } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils"
 import { Metadata } from "next"
 import { SiteHeader } from "@/components/home/site-header"
@@ -32,6 +33,7 @@ export default function RootLayout({
           <SiteHeader />
 
           {children}
+          <Toaster position="bottom-right" />
         </ThemeProvider>
       </body>
     </html>

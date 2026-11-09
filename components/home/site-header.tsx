@@ -114,11 +114,7 @@ function UserMenu({
       {open && (
         <>
           {/* Click-away catcher */}
-          <div
-            aria-hidden
-            className="fixed inset-0"
-            onClick={onClose}
-          />
+          <div aria-hidden className="fixed inset-0" onClick={onClose} />
           <div className="absolute right-0 mt-2 w-48 rounded-lg border border-white/10 bg-[#0c0c11] p-1.5 shadow-xl">
             <div className="border-b border-white/5 px-2.5 py-2">
               <p className="truncate text-sm font-medium">{name}</p>
