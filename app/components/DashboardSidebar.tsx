@@ -29,13 +29,31 @@ const ROLE_LABEL: Record<UserRole, string> = {
   admin: "Admin",
 }
 
+/** Highlights the most specific matching route, not every ancestor. */
+function isItemActive(
+  href: string,
+  items: { href: string }[],
+  pathname: string
+) {
+  if (pathname !== href && !pathname.startsWith(`${href}/`)) return false
+  const specificMatch = items.some(
+    (other) =>
+      other.href !== href &&
+      other.href.length > href.length &&
+      (pathname === other.href || pathname.startsWith(`${other.href}/`))
+  )
+  return !specificMatch
+}
+
 function NavLink({
   item,
+  items,
 }: {
   item: { title: string; href: string; icon: React.ElementType }
+  items: { title: string; href: string; icon: React.ElementType }[]
 }) {
   const pathname = usePathname()
-  const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+  const active = isItemActive(item.href, items, pathname)
 
   return (
     <SidebarMenuItem>
@@ -164,7 +182,7 @@ export default function DashboardSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => (
-                  <NavLink key={item.title} item={item} />
+                  <NavLink key={item.title} item={item} items={section.items} />
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -177,7 +195,11 @@ export default function DashboardSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {PUBLIC_NAV.items.map((item) => (
-                <NavLink key={item.title} item={item} />
+                <NavLink
+                  key={item.title}
+                  item={item}
+                  items={PUBLIC_NAV.items}
+                />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>

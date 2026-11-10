@@ -49,7 +49,8 @@ export const CURRENCIES = ["USD", "EUR", "GBP", "BDT"] as const
 export type Currency = (typeof CURRENCIES)[number]
 
 export interface Job {
-  id: string
+  /** MongoDB document id (serialized to string by the server). */
+  _id: string
   title: string
   category: JobCategory
   type: JobType

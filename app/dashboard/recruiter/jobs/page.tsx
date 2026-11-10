@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,15 +21,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useJobs, useJobMutation } from "@/hooks/use-jobs"
 import {
+  changeJobStatus,
   deleteJob,
   formatSalary,
   formatDate,
   getActiveJobLimit,
   getRecruiterPlan,
-  subscribeJobs,
-  toggleJobStatus,
-} from "@/lib/job-store"
+} from "@/lib/jobs"
 import type { Job, JobStatus } from "@/lib/types"
 import {
   Briefcase,
@@ -87,9 +87,23 @@ function UsageIndicator({ jobs }: { jobs: Job[] }) {
   )
 }
 
-function RowActions({ job }: { job: Job }) {
+function RowActions({
+  job,
+  refetch,
+}: {
+  job: Job
+  refetch: () => Promise<void>
+}) {
   const router = useRouter()
+  const { run } = useJobMutation()
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const withToast = (mutation: () => Promise<unknown>, success: string) =>
+    run(async () => {
+      await mutation()
+      await refetch()
+      toast.success(success)
+    })
 
   return (
     <DropdownMenu
@@ -105,7 +119,7 @@ function RowActions({ job }: { job: Job }) {
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem
           onClick={() =>
-            router.push(`/dashboard/recruiter/jobs/new?id=${job.id}`)
+            router.push(`/dashboard/recruiter/jobs/new?id=${job._id}`)
           }
         >
           <Pencil />
@@ -113,19 +127,25 @@ function RowActions({ job }: { job: Job }) {
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() =>
-            toast.info("Applicant tracking will arrive with the backend.")
+            toast.info(
+              "Applicant tracking will come with the applications API."
+            )
           }
         >
           <Users />
           View Applicants
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => {
-            toggleJobStatus(job.id)
-            toast.success(
+          onClick={() =>
+            withToast(
+              () =>
+                changeJobStatus(
+                  job._id,
+                  job.status === "Active" ? "Closed" : "Active"
+                ),
               job.status === "Active" ? "Job closed." : "Job reopened."
             )
-          }}
+          }
         >
           <RotateCcw />
           {job.status === "Active" ? "Close Job" : "Reopen Job"}
@@ -134,10 +154,9 @@ function RowActions({ job }: { job: Job }) {
         {confirmDelete ? (
           <DropdownMenuItem
             className="font-medium text-destructive data-highlighted:text-destructive"
-            onClick={() => {
-              deleteJob(job.id)
-              toast.success(`Deleted “${job.title}”.`)
-            }}
+            onClick={() =>
+              withToast(() => deleteJob(job._id), `Deleted “${job.title}”.`)
+            }
           >
             <Trash2 />
             Confirm Delete
@@ -157,9 +176,7 @@ function RowActions({ job }: { job: Job }) {
 }
 
 export default function ManageJobsPage() {
-  const [jobs, setJobs] = useState<Job[] | null>(null)
-
-  useEffect(() => subscribeJobs(setJobs), [])
+  const { jobs, error, refetch } = useJobs()
 
   const sorted = useMemo(
     () =>
@@ -185,7 +202,10 @@ export default function ManageJobsPage() {
             Post New Job
           </Button>
         ) : (
-          <Button render={<Link href="/dashboard/recruiter/jobs/new" />}>
+          <Button
+            render={<Link href="/dashboard/recruiter/jobs/new" />}
+            nativeButton={false}
+          >
             <Plus />
             Post New Job
           </Button>
@@ -193,6 +213,12 @@ export default function ManageJobsPage() {
       </div>
 
       <UsageIndicator jobs={jobs ?? []} />
+
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+          {error} Is the API server running on port 5000?
+        </p>
+      )}
 
       <div className="rounded-lg border border-border bg-card">
         <Table>
@@ -215,16 +241,18 @@ export default function ManageJobsPage() {
                   className="py-12 text-center text-muted-foreground"
                 >
                   <Briefcase className="mx-auto mb-3 h-8 w-8 opacity-40" />
-                  No jobs yet — post your first job.
+                  {jobs === null
+                    ? "Loading jobs…"
+                    : "No jobs yet — post your first job."}
                 </TableCell>
               </TableRow>
             )}
             {sorted.map((job) => (
-              <TableRow key={job.id}>
+              <TableRow key={job._id}>
                 <TableCell className="max-w-xs">
                   <p className="truncate font-medium">{job.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {job.category}
+                    {job.company.name} · {job.category}
                     {job.isRemote ? " · Remote" : ` · ${job.location}`}
                   </p>
                 </TableCell>
@@ -257,13 +285,13 @@ export default function ManageJobsPage() {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <RowActions job={job} />
+                  <RowActions job={job} refetch={refetch} />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        {(jobs ?? []).length > 0 && (
+        {sorted.length > 0 && (
           <p className="flex items-center gap-1.5 border-t px-4 py-3 text-xs text-muted-foreground">
             <Eye className="h-3.5 w-3.5" />
             {sorted.filter((job) => job.status === "Active").length} active ·{" "}

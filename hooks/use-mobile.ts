@@ -16,6 +16,6 @@ export function useIsMobile() {
   return React.useSyncExternalStore(
     subscribe,
     () => mediaQuery?.matches ?? false,
-    () => false,
+    () => false
   )
 }

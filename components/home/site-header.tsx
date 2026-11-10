@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { LayoutDashboard, LogOut } from "lucide-react"
 import { useSession, signOut } from "@/lib/auth-client"
 
@@ -15,8 +15,12 @@ const navLinks = [
 
 export function SiteHeader() {
   const router = useRouter()
+  const pathname = usePathname()
   const { data: session } = useSession()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // Dashboards have their own sidebar layout, so the public header steps aside.
+  if (pathname.startsWith("/dashboard")) return null
 
   const handleSignOut = async () => {
     await signOut()

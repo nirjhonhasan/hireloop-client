@@ -29,6 +29,7 @@ export default function RecruiterDashboardPage() {
             variant="outline"
             size="lg"
             render={<Link href={link.href} />}
+            nativeButton={false}
           >
             <link.icon />
             {link.title}

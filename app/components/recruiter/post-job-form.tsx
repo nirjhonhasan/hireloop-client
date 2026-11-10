@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,7 +31,7 @@ import {
   getJobs,
   getRecruiterPlan,
   DEMO_COMPANY,
-} from "@/lib/job-store"
+} from "@/lib/jobs"
 import {
   CURRENCIES,
   JOB_CATEGORIES,
@@ -81,26 +81,37 @@ export function PostJobForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editId = searchParams.get("id")
+  const [submitting, setSubmitting] = useState(false)
 
-  const [form, setForm] = useState<JobFormState>(() => {
-    const id = searchParams.get("id")
-    const job = id ? getJobs().find((candidate) => candidate.id === id) : undefined
-    if (!job) return DEFAULT_FORM
-    return {
-      title: job.title,
-      category: job.category,
-      type: job.type,
-      salaryMin: String(job.salaryMin),
-      salaryMax: String(job.salaryMax),
-      currency: job.currency,
-      location: job.location,
-      isRemote: job.isRemote,
-      deadline: job.deadline,
-      responsibilities: job.description.responsibilities ?? "",
-      requirements: job.description.requirements ?? "",
-      benefits: job.description.benefits ?? "",
+  const [form, setForm] = useState<JobFormState>(DEFAULT_FORM)
+
+  // Pre-fill the form when editing an existing job (server fetch is async).
+  useEffect(() => {
+    if (!editId) return
+    let cancelled = false
+    void getJobs().then((jobs) => {
+      if (cancelled) return
+      const job = jobs.find((candidate) => candidate._id === editId)
+      if (!job) return
+      setForm({
+        title: job.title,
+        category: job.category,
+        type: job.type,
+        salaryMin: String(job.salaryMin),
+        salaryMax: String(job.salaryMax),
+        currency: job.currency,
+        location: job.location,
+        isRemote: job.isRemote,
+        deadline: job.deadline,
+        responsibilities: job.description.responsibilities ?? "",
+        requirements: job.description.requirements ?? "",
+        benefits: job.description.benefits ?? "",
+      })
+    })
+    return () => {
+      cancelled = true
     }
-  })
+  }, [editId])
 
   const set = <Key extends keyof JobFormState>(
     key: Key,
@@ -139,36 +150,48 @@ export function PostJobForm() {
     }
   }
 
-  function submit(status: "Active" | "Draft") {
+  async function submit(status: "Active" | "Draft") {
+    if (submitting) return
     const error = validate()
     if (error) {
       toast.error(error)
       return
     }
 
-    const activeJobs = getJobs().filter((job) => job.status === "Active").length
-    if (
-      status === "Active" &&
-      !editId &&
-      activeJobs >= getActiveJobLimit(getRecruiterPlan())
-    ) {
-      toast.error(
-        `The ${getRecruiterPlan()} plan allows ${getActiveJobLimit()} active job posts. Upgrade to post more.`
-      )
-      return
+    if (status === "Active" && !editId) {
+      const activeJobs = (await getJobs()).filter(
+        (job) => job.status === "Active"
+      ).length
+      if (activeJobs >= getActiveJobLimit(getRecruiterPlan())) {
+        toast.error(
+          `The ${getRecruiterPlan()} plan allows ${getActiveJobLimit()} active job posts. Upgrade to post more.`
+        )
+        return
+      }
     }
 
-    if (editId) {
-      updateJob(editId, toJobInput(status))
-      toast.success("Job updated.")
-    } else if (status === "Draft") {
-      createJob(toJobInput("Draft"))
-      toast.success("Job saved as draft.")
-    } else {
-      createJob(toJobInput("Active"))
-      toast.success(`${form.title.trim()} is now live.`)
+    const done = editId
+      ? updateJob(editId, toJobInput(status)).then(() =>
+          toast.success("Job updated.")
+        )
+      : createJob(toJobInput(status)).then(() =>
+          toast.success(
+            status === "Draft"
+              ? "Job saved as draft."
+              : `${form.title.trim()} is now live.`
+          )
+        )
+    setSubmitting(true)
+    try {
+      await done
+      router.push("/dashboard/recruiter/jobs")
+    } catch {
+      toast.error(
+        "The server rejected the request. Is the API running on port 5000?"
+      )
+    } finally {
+      setSubmitting(false)
     }
-    router.push("/dashboard/recruiter/jobs")
   }
 
   return (
@@ -178,6 +201,7 @@ export function PostJobForm() {
           <Button
             variant="outline"
             size="icon"
+            nativeButton={false}
             render={<Link href="/dashboard/recruiter/jobs" />}
           >
             <ArrowLeft />
@@ -417,11 +441,15 @@ export function PostJobForm() {
 
       {/* Actions ------------------------------------------------------------ */}
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <Button variant="outline" onClick={() => submit("Draft")}>
+        <Button
+          variant="outline"
+          onClick={() => void submit("Draft")}
+          disabled={submitting}
+        >
           <Save />
           Save as Draft
         </Button>
-        <Button onClick={() => submit("Active")}>
+        <Button onClick={() => void submit("Active")} disabled={submitting}>
           <Send />
           {editId ? "Save Changes" : "Publish Job"}
         </Button>
